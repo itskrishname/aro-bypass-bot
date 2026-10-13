@@ -26,7 +26,7 @@
     </div>
 
     <div id="pane-bulk" class="hidden">
-      <textarea id="bulk" rows="6" placeholder="One link per line (max 25)"></textarea>
+      <textarea id="bulk" rows="6" placeholder="One link per line (max 5)"></textarea>
     </div>
 
     <div class="row">
@@ -35,6 +35,10 @@
     </div>
   </section>
 
+  <section class="log-panel" aria-label="Live processing logs">
+    <div class="log-header"><strong>Live Processing Logs</strong><button id="clear-logs" type="button">Clear</button></div>
+    <div id="logs" class="logs" role="log" aria-live="polite"><div class="log-entry">Ready — enter a link to see each processing step.</div></div>
+  </section>
   <div id="status" class="status"></div>
   <div id="output"></div>
 
