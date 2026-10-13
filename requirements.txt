@@ -1,0 +1,8 @@
+flask>=3.0,<4
+flask-cors>=4.0,<6
+requests>=2.31,<3
+beautifulsoup4>=4.12,<5
+lxml>=5,<7
+curl_cffi>=0.6,<1
+playwright==1.55.0
+gunicorn>=22,<24
