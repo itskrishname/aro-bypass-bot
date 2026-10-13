@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkBypasser - Short Link Bypass</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Link<span>Bypasser</span></h1>
+    <p class="sub">Paste a short link and get the <b>real destination</b> - countdowns, ad walls and
+      "Get Link" pages are cleared automatically.</p>
+  </header>
+
+  <section class="card">
+    <div class="tabs">
+      <button class="tab active" data-mode="single">Single</button>
+      <button class="tab" data-mode="bulk">Bulk</button>
+      <button class="tab" data-lane="mode" id="tab-mode">Mode: Auto</button>
+    </div>
+
+    <div id="pane-single">
+      <input id="url" type="text" placeholder="https://arolinks.com/xxxxxx" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div id="pane-bulk" class="hidden">
+      <textarea id="bulk" rows="6" placeholder="One link per line (max 25)"></textarea>
+    </div>
+
+    <div class="row">
+      <span class="hint" id="mode-hint">Auto: fast HTTP pass, then a headless browser if a wall is in the way.</span>
+      <button id="go">Bypass</button>
+    </div>
+  </section>
+
+  <div id="status" class="status"></div>
+  <div id="output"></div>
+
+  <footer>Demo app &middot; only expand links you are allowed to visit &middot; respect each site's terms.</footer>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
