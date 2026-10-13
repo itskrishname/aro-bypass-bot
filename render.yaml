@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: scrapes-gop
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: LB_ALLOW_LOCAL
+        value: "0"
