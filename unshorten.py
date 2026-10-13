@@ -1095,7 +1095,7 @@ def fetch_preview(url: str) -> dict[str, Any]:
     return {}
 
 
-def browser_lane(raw_url: str, budget_ms: int = 150000, safety: bool = True) -> Result:
+def browser_lane(raw_url: str, budget_ms: int = 75000, safety: bool = True) -> Result:
     """Drive a real browser and report the URL a human would land on."""
     started = time.perf_counter()
     result = Result(input_url=raw_url, lane="browser", method="browser")
@@ -1138,7 +1138,9 @@ def browser_lane(raw_url: str, budget_ms: int = 150000, safety: bool = True) -> 
             page.on("popup", lambda pg: popups.append(pg))
             page.on("request", lambda rq: ledger.append(rq.url))
 
-            page.goto(url, wait_until="domcontentloaded", timeout=45000)
+            _emit("browser", "Chromium launched; opening shortener page")
+            page.goto(url, wait_until="domcontentloaded", timeout=25000)
+            _emit("browser", "Page loaded; inspecting buttons and redirects")
             step = 0
             last_url = ""
             previous_url = ""
@@ -1353,6 +1355,7 @@ def browser_lane(raw_url: str, budget_ms: int = 150000, safety: bool = True) -> 
                             Hop(index=len(result.chain) + 1, url=candidate, type="browser",
                                 location=page.url, note="Get Link (popup)"))
 
+            _emit("browser", "Browser steps completed; checking destination")
             if not result.protection:
                 detected = detect_protection(page.content(), page.url)
                 if detected and not found:
@@ -1371,6 +1374,7 @@ def browser_lane(raw_url: str, budget_ms: int = 150000, safety: bool = True) -> 
     except Exception as exc:
         result.error = f"Browser lane failed: {type(exc).__name__}: {exc}"[:200]
 
+    _emit("browser", "Browser finished: " + ("destination found" if found else (result.error or result.protection or "no destination")))
     result.final_url = found
     result.ok = bool(found)
     result.explicit = bool(found) and explicit
@@ -1403,6 +1407,18 @@ def reached_destination(result: Result) -> bool:
     return True
 
 
+import threading
+_EVENT_LOCAL = threading.local()
+
+def _emit(stage, message):
+    callback = getattr(_EVENT_LOCAL, "callback", None)
+    if callback:
+        try:
+            callback(stage, message)
+        except Exception:
+            pass
+
+
 def bypass(raw_url: str, mode: str = "auto", use_browser: bool | None = None,
           safety: bool = True) -> Result:
     """mode: auto | http | browser"""
@@ -1411,16 +1427,20 @@ def bypass(raw_url: str, mode: str = "auto", use_browser: bool | None = None,
         mode = "browser" if use_browser else "http"
 
     if mode == "browser":
+        _emit("browser", "Launching Chromium browser")
         out = browser_lane(raw_url, safety=safety)
         out.elapsed_ms = int((time.perf_counter() - started) * 1000)
         return out
 
+    _emit("http", "Checking redirects and HTML candidates")
     http_res = http_lane(raw_url, safety=safety)
+    _emit("http", "HTTP result: " + (http_res.protection or http_res.error or ("destination found" if reached_destination(http_res) else "wall remains")))
 
     if mode == "auto" and not reached_destination(http_res):
+        _emit("browser", "HTTP unresolved; starting Chromium fallback")
         browser_res = browser_lane(raw_url, safety=safety)
         http_res.bypassed = browser_res.bypassed
-        http_res.lane = "http+browser" if browser_res.ok else "http"
+        http_res.lane = "http+browser"
         http_res.elapsed_ms = int((time.perf_counter() - started) * 1000)
         if browser_res.ok:
             http_res.final_url = browser_res.final_url
@@ -1438,11 +1458,14 @@ def bypass(raw_url: str, mode: str = "auto", use_browser: bool | None = None,
             http_res.hops = len(merged)
         else:
             http_res.note = browser_res.note or http_res.note
+            _emit("browser", "Browser unresolved: " + (browser_res.error or browser_res.protection or browser_res.note or "unknown"))
             if browser_res.error:
                 http_res.warnings.append(browser_res.error)
             if http_res.protection in (None, "shortener-wall") and not http_res.error:
                 http_res.protection = http_res.protection or "unresolved"
 
+    if mode == "auto" and http_res.lane == "http+browser" and not browser_res.ok:
+        http_res.protection = browser_res.protection or http_res.protection
     final_host = urlparse(http_res.final_url).netloc if http_res.final_url else ""
     input_host = urlparse(raw_url).netloc
     left_the_wall = bool(final_host) and _root(final_host) != _root(input_host)
@@ -1455,6 +1478,7 @@ def bypass(raw_url: str, mode: str = "auto", use_browser: bool | None = None,
     if not http_res.bypassed and not http_res.note:
         http_res.note = ("Stopped on the shortener: the destination is only released "
                          "after a captcha, which this tool will not fake.")
+    _emit("complete", "Destination verified" if http_res.bypassed else "No verified destination")
     return http_res
 
 
