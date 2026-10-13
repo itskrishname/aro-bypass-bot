@@ -104,3 +104,5 @@ table.bulk tr.dim a { color: var(--muted); }
 
 .copy { cursor: pointer; }
 footer { color: #5b648a; font-size: 12px; text-align: center; margin-top: 40px; }
+
+.log-panel{margin:22px 0;border:1px solid #303c60;border-radius:18px;background:#10192d;overflow:hidden}.log-header{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;color:#dbe6ff;border-bottom:1px solid #303c60}.log-header button{background:#253354;border:0;color:#dbe6ff;border-radius:8px;padding:7px 14px;cursor:pointer}.logs{padding:14px 18px;height:220px;overflow:auto;font:12px/1.7 ui-monospace,SFMono-Regular,Consolas,monospace;color:#a9c4ff;white-space:pre-wrap;overflow-wrap:anywhere}.log-entry{padding:4px 0;border-bottom:1px solid #202c47}
