@@ -10,4 +10,4 @@ COPY app.py unshorten.py ./
 COPY templates ./templates
 COPY static ./static
 EXPOSE 10000
-CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 4 --timeout 240 --graceful-timeout 30 app:app"]
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-10000} --workers 1 --threads 8 --timeout 180 --graceful-timeout 30 app:app"]
