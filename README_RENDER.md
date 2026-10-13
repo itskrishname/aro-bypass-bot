@@ -1,22 +1,9 @@
-# Scrapes Gop — Render (Full Chromium)
+# Scrapes Gop Render — live logs edition
 
-## Deploy
-1. Extract this ZIP and upload its contents to the ROOT of a GitHub repository.
-2. Open https://dashboard.render.com/ > New > Web Service, connect the repository.
-3. Choose Docker runtime (Dockerfile at repository root).
-4. Select an instance with enough RAM for Chromium (Starter or higher recommended).
-5. Deploy. Render sets PORT; Gunicorn binds to it automatically.
-6. Visit your service URL and `/api/health` to verify it is up.
+Deploy as Render Docker Web Service, health check `/api/health`, Starter or higher recommended.
 
-## Supported modes
-- `http`: lightweight HTTP extraction
-- `browser`: real Playwright Chromium automation
-- `auto`: HTTP first, browser fallback
+Live progress: `POST /api/jobs` JSON `{ "url": "https://example.com", "mode": "auto" }` returns `job_id`; poll `GET /api/jobs/<job_id>` for status/events/results. Bulk: send `text` instead of `url` (max 5).
 
-## Important
-- Original extraction code is retained; Chromium runs in a Playwright base image.
-- Browser-based bypass depends on the target website and can fail on CAPTCHAs, anti-bot measures, or changed pages.
-- Bulk browser operations can exhaust RAM; avoid public heavy traffic without authentication, rate limiting, and job queue.
-- The upstream URL validation has not been fully security audited for SSRF, DNS rebinding or all browser subrequests. Do not publicly expose to untrusted users before hardening.
-- Docker image is large and the first build can take several minutes.
-- Deployment is not live-tested here; local Python compilation passed.
+Changes: live user-visible per-job logs; 75-second browser budget (previously 150s); serial browser access to avoid memory spikes; honest `http+browser` lane when fallback fails; improved failure propagation; removed permissive CORS. Jobs stored in memory and expire after 15 minutes; use a single Gunicorn worker.
+
+Limitations: not guaranteed for protected links; CAPTCHA requires user action; browser destination network checks need additional hardening for adversarial public input; no authentication/rate limiting yet. Logs show major milestones, not every browser click. A worker restart loses jobs.
