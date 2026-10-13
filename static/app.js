@@ -35,46 +35,51 @@ $("#url").addEventListener("keydown", (e) => {
 });
 $("#go").addEventListener("click", run);
 
+const logs = $("#logs");
+$("#clear-logs").addEventListener("click", () => { logs.innerHTML = ""; });
+function logLine(ev) {
+  const div = document.createElement("div");
+  div.className = "log-entry";
+  div.textContent = `[+${Number(ev.time || 0).toFixed(1)}s] ${String(ev.stage || "info").toUpperCase()} · ${ev.message || ""}`;
+  logs.appendChild(div);
+  logs.scrollTop = logs.scrollHeight;
+}
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function run() {
   const btn = $("#go");
   btn.disabled = true;
   output.innerHTML = "";
-  statusEl.textContent = lane === "browser" ? "Opening headless browser, clearing the wall..." : "Resolving...";
-
-  // multi-step campaigns take a while; say so before it looks frozen
-  const slow = setTimeout(
-    () => (statusEl.textContent = "Walking the multi-step flow (countdown + verify + continue), usually 20-40s..."),
-    5000
-  );
-
+  logs.innerHTML = "";
+  statusEl.textContent = "Starting...";
   try {
-    if (mode === "single") {
-      const url = $("#url").value.trim();
-      if (!url) { statusEl.textContent = "Enter a link first."; return; }
-      const res = await post("/api/expand", { url, mode: lane });
-      statusEl.textContent = res.bypassed ? "" : "Could not fully bypass this link.";
-      output.innerHTML = card(res);
-    } else {
-      const text = $("#bulk").value.trim();
-      if (!text) { statusEl.textContent = "Paste at least one link."; return; }
-      const res = await post("/api/bulk", { text, mode: lane });
-      statusEl.textContent = `${res.bypassed}/${res.count} link(s) fully bypassed.`;
-      output.innerHTML = table(res.results);
+    const payload = mode === "single" ? {url: $("#url").value.trim(), mode: lane} : {text: $("#bulk").value.trim(), mode: lane};
+    if (!(payload.url || payload.text)) throw new Error("Enter at least one URL");
+    const created = await post("/api/jobs", payload);
+    let seen = 0;
+    let finished = false;
+    for (let i=0; i<180; i++) {
+      const r = await fetch(`/api/jobs/${encodeURIComponent(created.job_id)}`, {cache:"no-store"});
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Unable to read job");
+      (data.events || []).slice(seen).forEach(logLine);
+      seen = (data.events || []).length;
+      if (data.status === "done") {
+        const results = data.results || [];
+        const successes = results.filter(x=>x.bypassed).length;
+        statusEl.textContent = `${successes}/${results.length} link(s) resolved.`;
+        output.innerHTML = mode === "single" ? card(results[0] || {}) : table(results);
+        finished = true; break;
+      }
+      if (data.status === "error") throw new Error("Worker failed. Check the logs above.");
+      statusEl.textContent = data.status === "queued" ? "Queued..." : "Processing — see live logs below";
+      await sleep(1200);
     }
-  } catch (err) {
-    statusEl.textContent = "Request failed: " + err.message;
-  } finally {
-    clearTimeout(slow);
-    btn.disabled = false;
-  }
+    if (!finished) throw new Error("Waiting timed out. Please try again.");
+  } catch (err) { statusEl.textContent = "Request failed: " + err.message; logLine({stage:"error",message:err.message}); }
+  finally { btn.disabled = false; }
 }
-
 async function post(path, body) {
-  const r = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const r = await fetch(path, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)});
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || r.statusText);
   return data;
